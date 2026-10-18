@@ -1,17 +1,1329 @@
-<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ระบบสารบรรณดิจิทัล</title><style>
-:root{font-family:system-ui,'Noto Sans Thai',sans-serif;color:#203047;background:#f3f7fc}*{box-sizing:border-box}body{margin:0}button,input,select,textarea{font:inherit}button{cursor:pointer;border:0;border-radius:9px;padding:10px 14px;background:#163d73;color:white}button.secondary{background:#e7eef8;color:#173a67}button.danger{background:#b42f46}button:disabled{opacity:.5}input,select,textarea{border:1px solid #cdd8e7;border-radius:8px;padding:10px;width:100%;background:white}textarea{min-height:90px}label{font-size:13px;color:#47566a;display:block}label>*{margin-top:5px}.layout{display:flex;min-height:100vh}.side{width:250px;background:#102d53;color:white;padding:22px 12px;flex-shrink:0}.brand{font-size:18px;font-weight:800;padding:12px}.nav{display:block;width:100%;text-align:left;background:transparent;margin:3px 0}.nav.active,.nav:hover{background:#285387}.main{flex:1;min-width:0}.top{background:white;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;gap:12px;box-shadow:0 1px 6px #dde5ef}.content{padding:24px;max-width:1600px;margin:auto}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:14px}.card,.panel{background:white;border:1px solid #e1e8f2;border-radius:14px;padding:18px;box-shadow:0 2px 10px #d9e4f244}.card strong{font-size:28px;color:#153d72}.panel{margin-top:16px}.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:14px}.toolbar input,.toolbar select{max-width:240px}.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;font-size:13px}td,th{padding:11px;border-bottom:1px solid #e8edf5;text-align:left;white-space:nowrap}th{background:#f3f7fc;cursor:pointer}td button{margin:2px;padding:6px 9px}.badge{border-radius:20px;padding:4px 9px;background:#e7eef9;color:#17416f}.badge[data-status="เกินกำหนด"],.badge[data-status="ยกเลิก"]{background:#ffe2e5;color:#a51c35}.badge[data-status="เสร็จสิ้น"],.badge[data-status="ส่งแล้ว"]{background:#d9f6e6;color:#14683c}.badge[data-status="รอเสนอ"],.badge[data-status="รอสั่งการ"],.badge[data-status="รอลงนาม"]{background:#fff0ca;color:#895800}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.wide{grid-column:1/-1}.overlay{position:fixed;inset:0;background:#14253b99;display:grid;place-items:center;z-index:5;padding:14px}.modal{background:white;border-radius:14px;padding:22px;width:min(850px,100%);max-height:94vh;overflow:auto}.hidden{display:none!important}.toast{position:fixed;bottom:20px;right:20px;background:#173d6d;color:white;padding:15px;border-radius:10px;z-index:10}.login{max-width:430px;margin:12vh auto}.muted{color:#65758c;font-size:13px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.pagination{display:flex;justify-content:flex-end;gap:10px;align-items:center;margin-top:14px}.bars{display:flex;align-items:end;gap:8px;height:180px;overflow:auto}.bar{min-width:35px;background:#3b79c6;border-radius:5px 5px 0 0}.barlabel{font-size:10px;text-align:center}.mobilemenu{display:none}@media(max-width:800px){.side{position:fixed;inset:0 auto 0 0;z-index:4;transform:translateX(-100%);transition:.2s}.side.open{transform:none}.mobilemenu{display:block}.content{padding:12px}.top{padding:12px}.grid{grid-template-columns:1fr}.wide{grid-column:auto}}
-</style></head><body><div id="app"></div><div id="modal" class="overlay hidden"><div class="modal"><div class="toolbar"><h3 id="modalTitle" style="flex:1"></h3><button class="secondary" onclick="closeModal()">ปิด</button></div><div id="modalBody"></div></div></div><div id="toast" class="toast hidden"></div><script>
-'use strict';const API_URL='https://script.google.com/macros/s/AKfycbyGlu5eZJPsVn532lmW-Obs7FY_wl-IYkA0O00AyKLmtJTGiHdXIu7r3e1yqT75Dlrg2g/exec';const state={token:sessionStorage.getItem('ddms_token')||'',user:null,page:'dashboard',rows:[],sort:'CreatedAt',desc:true,offset:0,limit:15,filter:'',settings:{},lookups:{},dashboard:null};const $=id=>document.getElementById(id);const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const toast=m=>{const e=$('toast');e.textContent=m;e.classList.remove('hidden');setTimeout(()=>e.classList.add('hidden'),3500)};const date=v=>v?String(v).slice(0,10):'';const safeUrl=u=>/^https:\/\/(drive|docs)\.google\.com\//.test(u||'')?u:'';
-async function api(action,data={}){if(API_URL.startsWith('PASTE_'))throw Error('กรุณากำหนด API_URL ใน index.html');const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,token:state.token,data})});const x=await r.json();if(!x.success)throw Error(x.message||'ไม่สามารถดำเนินการได้');return x.data}async function run(fn){try{return await fn()}catch(e){toast(e.message);if(/เซสชัน|เข้าสู่ระบบใหม่/.test(e.message))logout();return null}}function logout(){state.token='';state.user=null;sessionStorage.removeItem('ddms_token');render()}
-function render(){if(!state.user){$('app').innerHTML=`<div class="login panel"><h2>ระบบสารบรรณดิจิทัล</h2><p>ภาควิชาเทคโนโลยีและสื่อสารการศึกษา</p><label>อีเมลบัญชี Google ที่ได้รับอนุญาต<input id="email" type="email"></label><label>รหัสผ่าน<input id="password" type="password" autocomplete="current-password"></label><div class="actions"><button onclick="login()">เข้าสู่ระบบ</button></div><p class="muted">ผู้ดูแลระบบสามารถตั้งรหัสผ่านใหม่ใน Google Sheets แท็บ Users คอลัมน์ PasswordReset ระบบจะเข้ารหัสหลังเข้าสู่ระบบสำเร็จ</p></div>`;return}const nav=[['dashboard','🏠 ภาพรวม'],['incoming','📥 หนังสือรับ'],['outgoing','📤 หนังสือส่ง'],['workflow','📋 เสนอ / สั่งการ'],['editor','📄 จัดทำเอกสาร'],['folders','🗂️ ทะเบียน / แฟ้ม'],['search','🔎 ค้นหา'],['reports','📊 รายงาน'],['settings','⚙️ ตั้งค่า']];$('app').innerHTML=`<div class="layout"><aside class="side" id="side"><div class="brand">ระบบสารบรรณดิจิทัล</div>${nav.map(([k,v])=>`<button class="nav ${state.page===k?'active':''}" onclick="navigate('${k}')">${v}</button>`).join('')}</aside><div class="main"><header class="top"><button class="mobilemenu" onclick="$('side').classList.toggle('open')">☰</button><b>สำนักงานดิจิทัล · มหาวิทยาลัยมหาสารคาม</b><span>${esc(state.user.Name)} · ${esc(state.user.Role)} <button class="secondary" onclick="logout()">ออกจากระบบ</button></span></header><main class="content" id="view"></main></div></div>`;loadPage()}
-async function login(){await run(async()=>{const email=$('email').value.trim();const x=await api('login',{email,password:$('password').value});state.token=x.token;state.user=x.user;sessionStorage.setItem('ddms_token',x.token);render()})}async function boot(){if(!state.token)return render();await run(async()=>{state.user=await api('getCurrentUser');render()});if(!state.user)render()};function navigate(p){state.page=p;state.offset=0;state.filter='';render()}
-const titles={incoming:'หนังสือรับ',outgoing:'หนังสือส่ง',workflow:'เสนอ / สั่งการ',folders:'ทะเบียน / แฟ้ม',search:'ค้นหาเอกสาร'};const status=['รอดำเนินการ','กำลังดำเนินการ','รอเสนอ','รอสั่งการ','มอบหมายแล้ว','รอลงนาม','ส่งแล้ว','เสร็จสิ้น','เกินกำหนด','ยกเลิก','จัดเก็บถาวร'];const option=(values,value='')=>values.map(v=>`<option value="${esc(v)}" ${String(v)===String(value)?'selected':''}>${esc(v)}</option>`).join('');function openModal(title,body){$('modalTitle').textContent=title;$('modalBody').innerHTML=body;$('modal').classList.remove('hidden')}function closeModal(){$('modal').classList.add('hidden')}
-async function loadPage(){const v=$('view');if(!v)return;v.innerHTML='<div class="panel">กำลังโหลดข้อมูล...</div>';await run(async()=>{if(state.page==='dashboard'){const d=await api('getDashboard');state.dashboard=d;v.innerHTML=`<h2>ภาพรวมระบบ</h2><div class="cards">${Object.entries(d.counts).map(([k,n])=>`<div class="card"><div>${esc(k)}</div><strong>${n}</strong></div>`).join('')}</div><div class="grid"><div class="panel"><h3>หนังสือรายเดือน</h3>${bars(d.monthly)}</div><div class="panel"><h3>สถานะเอกสาร</h3>${Object.entries(d.statuses).map(([k,n])=>`<p>${esc(k)} <b>${n}</b></p>`).join('')}</div><div class="panel wide"><h3>ตามหน่วยงาน</h3>${Object.entries(d.departments).map(([k,n])=>`<p>${esc(k)}: ${n}</p>`).join('')}</div></div>`;return}if(state.page==='settings'){await settingsPage();return}if(state.page==='editor'){editorPage();return}if(state.page==='reports'){await reportsPage();return}await listPage()})}function bars(data){const max=Math.max(1,...data.map(x=>x.incoming+x.outgoing));return `<div class="bars">${data.map(x=>`<div><div style="display:flex;align-items:end;height:150px;gap:2px"><div class="bar" title="รับ ${x.incoming}" style="height:${x.incoming/max*145}px"></div><div class="bar" title="ส่ง ${x.outgoing}" style="height:${x.outgoing/max*145}px;background:#5db9b0"></div></div><div class="barlabel">${esc(x.month)}</div></div>`).join('')}</div><p class="muted">สีน้ำเงิน: รับ · สีเขียว: ส่ง</p>`}
-async function listPage(){const p=state.page;let rows;if(p==='incoming')rows=await api('getIncomingBooks');else if(p==='outgoing')rows=await api('getOutgoingBooks');else if(p==='workflow')rows=await api('getWorkflowQueue');else if(p==='folders')rows=await api('getFolders');else rows=await api('searchDocuments',{});state.rows=rows;drawTable()}function drawTable(){const p=state.page;const rows=state.rows.filter(r=>Object.values(r).some(v=>String(v??'').toLowerCase().includes(state.filter.toLowerCase())));rows.sort((a,b)=>String(a[state.sort]??'').localeCompare(String(b[state.sort]??''),'th',{numeric:true})*(state.desc?-1:1));const page=rows.slice(state.offset,state.offset+state.limit);const cols=p==='folders'?['Name','Year','Department','Category','Type']:['RegisterNo','BookNo','Subject','FromDepartment','ToDepartment','Responsible','Deadline','Status'];$('view').innerHTML=`<h2>${titles[p]}</h2><div class="panel"><div class="toolbar"><input placeholder="ค้นหาในรายการ" value="${esc(state.filter)}" oninput="state.filter=this.value;state.offset=0;drawTable()"><select onchange="state.filter=this.value;state.offset=0;drawTable()"><option value="">ทุกสถานะ</option>${option(status)}</select>${['incoming','outgoing','folders'].includes(p)?`<button onclick="formRecord()">+ เพิ่มรายการ</button>`:''}<button class="secondary" onclick="printTable()">พิมพ์</button><button class="secondary" onclick="exportCsv()">CSV</button></div><div class="tablewrap"><table><thead><tr>${cols.map(c=>`<th onclick="sortBy('${c}')">${esc(c)} ↕</th>`).join('')}<th>จัดการ</th></tr></thead><tbody>${page.map(r=>`<tr>${cols.map(c=>`<td>${c==='Status'?`<span class="badge" data-status="${esc(r[c])}">${esc(r[c])}</span>`:esc(r[c])}</td>`).join('')}<td><button class="secondary" onclick="viewRecord('${esc(r.ID)}')">ดู</button>${p!=='search'?`<button class="secondary" onclick="formRecord('${esc(r.ID)}')">แก้ไข</button>`:''}${['incoming','outgoing'].includes(p)?`<button class="danger" onclick="removeRecord('${esc(r.ID)}')">ลบ</button>`:''}</td></tr>`).join('')||'<tr><td colspan="10">ไม่มีข้อมูล</td></tr>'}</tbody></table></div><div class="pagination"><span>${rows.length?state.offset+1:0}-${Math.min(state.offset+state.limit,rows.length)} / ${rows.length}</span><button class="secondary" onclick="changePage(-1)">ก่อนหน้า</button><button class="secondary" onclick="changePage(1)">ถัดไป</button></div></div>`}function changePage(d){const n=state.offset+d*state.limit;if(n>=0&&n<state.rows.length){state.offset=n;drawTable()}}function sortBy(k){state.desc=state.sort===k?!state.desc:false;state.sort=k;drawTable()}
-const incomingFields=[['BookNo','เลขที่หนังสือ'],['BookDate','วันที่หนังสือ','date'],['ReceiveDate','วันที่รับ','date'],['ReceiveTime','เวลารับ','time'],['Subject','เรื่อง'],['FromDepartment','จากหน่วยงาน'],['ToDepartment','ถึงหน่วยงาน'],['BookType','ประเภทหนังสือ'],['Urgency','ชั้นความเร็ว'],['Confidentiality','ชั้นความลับ'],['Responsible','ผู้รับผิดชอบ'],['Deadline','กำหนดดำเนินการ','date'],['Status','สถานะ'],['Details','รายละเอียด','textarea'],['Notes','หมายเหตุ','textarea'],['Important','เอกสารสำคัญ','checkbox'],['Permanent','เอกสารถาวร','checkbox'],['FolderID','รหัสแฟ้ม']];const outgoingFields=[['BookType','ประเภทหนังสือ'],['BookDate','วันที่','date'],['Subject','เรื่อง'],['Salutation','เรียน'],['FromDepartment','จาก'],['ToDepartment','ถึง'],['Enclosures','สิ่งที่ส่งมาด้วย'],['Body','เนื้อหา','textarea'],['PreparedBy','ผู้จัดทำ'],['Signatory','ผู้ลงนาม'],['Responsible','ผู้รับผิดชอบ'],['Deadline','กำหนดส่ง','date'],['Status','สถานะ'],['Notes','หมายเหตุ','textarea']];function field([k,label,type],r){let input;if(type==='textarea')input=`<textarea name="${k}">${esc(r[k])}</textarea>`;else if(type==='checkbox')input=`<input type="checkbox" name="${k}" ${r[k]===true||r[k]==='true'?'checked':''}>`;else if(k==='Status')input=`<select name="${k}">${option(status,r[k]||'รอดำเนินการ')}</select>`;else if(k==='Urgency')input=`<select name="${k}">${option(['ปกติ','ด่วน','ด่วนมาก','ด่วนที่สุด'],r[k])}</select>`;else if(k==='Confidentiality')input=`<select name="${k}">${option(['ปกติ','ลับ','ลับมาก','ลับที่สุด'],r[k])}</select>`;else if(k==='BookType')input=`<select name="${k}">${option(['หนังสือภายนอก','หนังสือภายใน','หนังสือประทับตรา','คำสั่ง','ประกาศ','บันทึกข้อความ'],r[k])}</select>`;else input=`<input name="${k}" type="${type||'text'}" value="${esc(r[k])}">`;return `<label class="${type==='textarea'?'wide':''}">${label}${input}</label>`}
-function formRecord(id=''){const p=state.page,r=state.rows.find(x=>x.ID===id)||{},fields=p==='incoming'?incomingFields:p==='outgoing'?outgoingFields:[['Name','ชื่อแฟ้ม'],['Year','ปี'],['Department','กลุ่มงาน'],['Category','หมวดหมู่'],['Type','ประเภท']];openModal(id?'แก้ไขรายการ':'เพิ่มรายการ',`<form id="recordForm" onsubmit="saveRecord(event,'${esc(id)}')"><div class="grid">${fields.map(f=>field(f,r)).join('')}<label class="wide">แนบไฟล์<input id="file" type="file"></label></div><div class="actions"><button type="submit">บันทึก</button></div></form>`)}async function saveRecord(e,id){e.preventDefault();await run(async()=>{const f=e.target,d=Object.fromEntries(new FormData(f).entries());f.querySelectorAll('input[type=checkbox]').forEach(x=>d[x.name]=x.checked);if(id)d.ID=id;const p=state.page;const action=p==='incoming'?(id?'updateIncomingBook':'saveIncomingBook'):p==='outgoing'?(id?'updateOutgoingBook':'saveOutgoingBook'):'saveFolder';const saved=await api(action,d);const file=$('file').files[0];if(file)await uploadSelected(file,saved.ID||id);closeModal();toast('บันทึกสำเร็จ');loadPage()})}async function uploadSelected(file,documentId){if(file.size>7*1024*1024)throw Error('ไฟล์ต้องไม่เกิน 7 MB');const base64=await new Promise((res,rej)=>{const reader=new FileReader();reader.onload=()=>res(String(reader.result).split(',')[1]);reader.onerror=rej;reader.readAsDataURL(file)});return api('uploadFile',{documentId,name:file.name,mimeType:file.type||'application/octet-stream',base64})}
-async function viewRecord(id){await run(async()=>{const r=await api('getDocument',{id});const fields=Object.entries(r.document).map(([k,v])=>`<tr><th>${esc(k)}</th><td style="white-space:normal">${esc(v)}</td></tr>`).join('');openModal('รายละเอียดเอกสาร',`<div class="tablewrap"><table>${fields}</table></div><h4>ไฟล์แนบ</h4>${r.files.map(f=>`<p>${esc(f.FileName)} <button class="secondary" onclick="downloadFile('${esc(f.ID)}')">เปิดไฟล์</button></p>`).join('')||'ไม่มีไฟล์'}<h4>ประวัติการดำเนินการ</h4>${r.timeline.map(t=>`<p>${esc(t.CreatedAt)} · ${esc(t.Action)} · ${esc(t.Comment)} (${esc(t.Actor)})</p>`).join('')||'ไม่มีประวัติ'}<div class="actions"><button onclick="workflowAction('${esc(id)}','submitForApproval')">เสนอ</button><button onclick="workflowAction('${esc(id)}','issueOrder')">สั่งการ</button><button onclick="workflowAction('${esc(id)}','assignTask')">มอบหมาย</button><button onclick="workflowAction('${esc(id)}','updateTaskStatus')">เปลี่ยนสถานะ</button><button onclick="workflowAction('${esc(id)}','sendOutgoingBook')">ส่งหนังสือ</button><button class="secondary" onclick="printModal()">พิมพ์</button></div>`)})}async function downloadFile(id){await run(async()=>{const x=await api('getFileLink',{id});const u=safeUrl(x.url);if(!u)throw Error('ลิงก์ไฟล์ไม่ถูกต้อง');window.open(u,'_blank','noopener,noreferrer')})}function workflowAction(id,action){openModal('บันทึกการดำเนินการ',`<form onsubmit="saveWorkflow(event,'${esc(id)}','${action}')"><div class="grid"><label>ผู้รับ / ผู้รับผิดชอบ<input name="assignee"></label><label>สถานะ<select name="status">${option(status)}</select></label><label>กำหนดส่ง<input name="deadline" type="date"></label><label>คำสั่ง<select name="order">${option(['ทราบ','ดำเนินการ','ตรวจสอบ','แจ้งผู้เกี่ยวข้อง','มอบหมาย','อื่น ๆ'])}</select></label><label class="wide">ความเห็น / รายละเอียด<textarea name="comment"></textarea></label></div><button>ยืนยัน</button></form>`)}async function saveWorkflow(e,id,action){e.preventDefault();await run(async()=>{await api(action,{id,...Object.fromEntries(new FormData(e.target).entries())});closeModal();toast('ดำเนินการสำเร็จ');loadPage()})}async function removeRecord(id){if(!confirm('ยืนยันลบรายการนี้?'))return;await run(async()=>{await api(state.page==='incoming'?'deleteIncomingBook':'deleteOutgoingBook',{id});toast('ลบสำเร็จ');loadPage()})}
-function editorPage(){const v=$('view');v.innerHTML=`<h2>จัดทำเอกสาร</h2><div class="panel"><form id="editorForm" onsubmit="createDocument(event)"><div class="grid">${outgoingFields.filter(x=>x[0]!=='Status').map(x=>field(x,{})).join('')}</div><div class="actions"><button>บันทึกและสร้าง PDF</button><button type="button" class="secondary" onclick="previewEditor()">ตัวอย่าง / พิมพ์</button></div></form></div>`}function previewEditor(){const d=Object.fromEntries(new FormData($('editorForm')).entries());const html=`<h2>${esc(d.BookType)}</h2><p>วันที่ ${esc(d.BookDate)}</p><p>เรื่อง ${esc(d.Subject)}</p><p>เรียน ${esc(d.Salutation)}</p><p>จาก ${esc(d.FromDepartment)} ถึง ${esc(d.ToDepartment)}</p><p>สิ่งที่ส่งมาด้วย ${esc(d.Enclosures)}</p><div style="white-space:pre-wrap">${esc(d.Body)}</div><p>ลงชื่อ ${esc(d.Signatory)}</p>`;openModal('ตัวอย่างเอกสาร',`<div id="preview">${html}</div><button onclick="printModal()">พิมพ์</button>`)}async function createDocument(e){e.preventDefault();await run(async()=>{const d=Object.fromEntries(new FormData(e.target).entries());const r=await api('saveOutgoingBook',d);const x=await api('createDocumentPdf',{id:r.ID});toast('สร้างเอกสารสำเร็จ');if(x.url)window.open(safeUrl(x.url),'_blank','noopener,noreferrer');navigate('outgoing')})}
-async function reportsPage(){const r=await api('getReports',{});$('view').innerHTML=`<h2>รายงาน</h2><div class="cards">${Object.entries(r.summary).map(([k,v])=>`<div class="card">${esc(k)}<br><strong>${v}</strong></div>`).join('')}</div><div class="panel"><h3>รายการเกินกำหนด</h3><div class="tablewrap"><table><tr><th>เรื่อง</th><th>ผู้รับผิดชอบ</th><th>กำหนดส่ง</th><th>เกิน (วัน)</th><th>สถานะ</th></tr>${r.overdue.map(x=>`<tr><td>${esc(x.Subject)}</td><td>${esc(x.Responsible)}</td><td>${esc(x.Deadline)}</td><td>${x.DaysOverdue}</td><td>${esc(x.Status)}</td></tr>`).join('')}</table></div><div class="actions"><button onclick="printTable()">พิมพ์</button><button onclick="exportCsv()">ส่งออก CSV</button></div></div>`;state.rows=r.overdue}
-async function settingsPage(){const [settings,users,departments,types]=await Promise.all([api('getSettings'),api('getUsers'),api('getDepartments'),api('getBookTypes')]);state.settings=settings;$('view').innerHTML=`<h2>ตั้งค่าระบบ</h2><div class="panel"><h3>รูปแบบเลขหนังสือและระบบ</h3><form onsubmit="saveConfig(event)" class="grid">${Object.entries(settings).filter(([k])=>!/(SECRET|TOKEN|KEY|PASSWORD)/i.test(k)).map(([k,v])=>`<label>${esc(k)}<input name="${esc(k)}" value="${esc(v)}"></label>`).join('')}<div class="wide"><button>บันทึกการตั้งค่า</button></div></form></div><div class="panel"><h3>ผู้ใช้งาน</h3><button onclick="userForm()">เพิ่ม / แก้ไขผู้ใช้</button>${simpleTable(users,['Email','Name','Department','Role','Status'])}</div><div class="panel"><h3>หน่วยงาน</h3><button onclick="lookupForm('saveDepartment')">เพิ่มหน่วยงาน</button>${simpleTable(departments,['Code','Name','Responsible','Status'])}</div><div class="panel"><h3>ประเภทหนังสือ</h3><button onclick="lookupForm('saveBookType')">เพิ่มประเภท</button>${simpleTable(types,['Name','Status'])}</div>`}function simpleTable(rows,cols){return `<div class="tablewrap"><table><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr>${rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(r[c])}</td>`).join('')}</tr>`).join('')}</table></div>`}async function saveConfig(e){e.preventDefault();await run(async()=>{await api('saveSettings',Object.fromEntries(new FormData(e.target).entries()));toast('บันทึกแล้ว')})}function userForm(){openModal('จัดการผู้ใช้',`<form onsubmit="saveSimple(event,'saveUser')"><div class="grid">${['Email','Name','Department'].map(k=>field([k,k],{})).join('')}<label>Role<select name="Role">${option(['Super Admin','Admin','ผู้บริหาร','เจ้าหน้าที่สารบรรณ','อาจารย์/บุคลากร','ผู้ใช้งานทั่วไป'])}</select></label><label>สถานะ<select name="Status">${option(['Active','Inactive'])}</select></label></div><button>บันทึก</button></form>`)}function lookupForm(action){const keys=action==='saveDepartment'?['Code','Name','Responsible','Status']:['Name','Status'];openModal('เพิ่มข้อมูล',`<form onsubmit="saveSimple(event,'${action}')"><div class="grid">${keys.map(k=>field([k,k],{})).join('')}</div><button>บันทึก</button></form>`)}async function saveSimple(e,action){e.preventDefault();await run(async()=>{await api(action,Object.fromEntries(new FormData(e.target).entries()));closeModal();loadPage()})}function printTable(){window.print()}function printModal(){const html=$('modalBody').innerHTML;const w=window.open('','_blank');if(!w)return;w.document.write('<html><meta charset="utf-8"><body>'+html.replace(/<button[^>]*>[\s\S]*?<\/button>/g,'')+'</body></html>');w.document.close();w.print()}function exportCsv(){const rows=state.rows;if(!rows.length)return toast('ไม่มีข้อมูล');const keys=Object.keys(rows[0]);const csv=[keys,...rows.map(r=>keys.map(k=>'"'+String(r[k]??'').replace(/"/g,'""')+'"'))].map(x=>x.join(',')).join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));a.download='document-report.csv';a.click();URL.revokeObjectURL(a.href)}boot();
-</script></body></html>
+<!doctype html>
+<html lang="th" class="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ระบบสารบรรณดิจิทัล · มหาวิทยาลัยมหาสารคาม</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '"Noto Sans Thai"', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#2563eb',
+              600: '#1d4ed8',
+              700: '#1e40af',
+              800: '#1e3a8a',
+              900: '#172554',
+            },
+            msu: {
+              gold: '#eab308',
+              navy: '#0f2547'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Plus Jakarta Sans', 'Noto Sans Thai', sans-serif;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    /* Glassmorphism Surface */
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(226, 232, 240, 0.85);
+    }
+    .dark .glass-panel {
+      background: rgba(30, 41, 59, 0.82);
+      border: 1px solid rgba(51, 65, 85, 0.85);
+    }
+    .glass-header {
+      background: rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .dark .glass-header {
+      background: rgba(15, 23, 42, 0.78);
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.4); border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.7); }
+
+    /* Form Controls inside Dynamic Forms */
+    .form-field input:not([type="checkbox"]),
+    .form-field select,
+    .form-field textarea {
+      width: 100%;
+      border-radius: 0.75rem;
+      border: 1px solid #cbd5e1;
+      background-color: #ffffff;
+      padding: 0.625rem 0.875rem;
+      font-size: 0.875rem;
+      color: #0f172a;
+      transition: all 0.2s;
+      outline: none;
+    }
+    .dark .form-field input:not([type="checkbox"]),
+    .dark .form-field select,
+    .dark .form-field textarea {
+      border-color: #334155;
+      background-color: #0f172a;
+      color: #f8fafc;
+    }
+    .form-field input:focus,
+    .form-field select:focus,
+    .form-field textarea:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+    .form-field textarea { min-height: 96px; }
+
+    /* Status Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      white-space: nowrap;
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+    .dark .badge { background: rgba(14, 165, 233, 0.2); color: #7dd3fc; }
+
+    .badge[data-status="เกินกำหนด"], .badge[data-status="ยกเลิก"] {
+      background: #ffe4e6; color: #be123c;
+    }
+    .dark .badge[data-status="เกินกำหนด"], .dark .badge[data-status="ยกเลิก"] {
+      background: rgba(244, 63, 94, 0.2); color: #fda4af;
+    }
+
+    .badge[data-status="เสร็จสิ้น"], .badge[data-status="ส่งแล้ว"] {
+      background: #dcfce7; color: #15803d;
+    }
+    .dark .badge[data-status="เสร็จสิ้น"], .dark .badge[data-status="ส่งแล้ว"] {
+      background: rgba(34, 197, 94, 0.2); color: #86efac;
+    }
+
+    .badge[data-status="รอเสนอ"], .badge[data-status="รอสั่งการ"], .badge[data-status="รอลงนาม"], .badge[data-status="รอดำเนินการ"] {
+      background: #fef3c7; color: #b45309;
+    }
+    .dark .badge[data-status="รอเสนอ"], .dark .badge[data-status="รอสั่งการ"], .dark .badge[data-status="รอลงนาม"], .dark .badge[data-status="รอดำเนินการ"] {
+      background: rgba(245, 158, 11, 0.2); color: #fcd34d;
+    }
+
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white !important; color: black !important; }
+      .glass-panel { border: none !important; box-shadow: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 antialiased selection:bg-blue-600 selection:text-white min-h-screen">
+
+  <!-- Main App Container -->
+  <div id="app"></div>
+
+  <!-- Mobile Backdrop -->
+  <div id="sidebarBackdrop" onclick="toggleMobileMenu(false)" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-30 hidden md:hidden transition-opacity"></div>
+
+  <!-- Universal Modal -->
+  <div id="modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-3 sm:p-5">
+    <div class="glass-panel bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150">
+      <div class="px-6 py-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between bg-slate-50/60 dark:bg-slate-800/40">
+        <div class="flex items-center gap-2.5">
+          <span class="w-2.5 h-6 rounded-full bg-blue-600"></span>
+          <h3 id="modalTitle" class="text-lg font-bold text-slate-900 dark:text-white"></h3>
+        </div>
+        <button onclick="closeModal()" class="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors" title="ปิดหน้าต่าง">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div id="modalBody" class="p-6 overflow-y-auto space-y-4"></div>
+    </div>
+  </div>
+
+  <!-- Global Loading Indicator -->
+  <div id="loader" class="fixed top-4 right-4 z-50 hidden items-center gap-2.5 px-4 py-2.5 rounded-full glass-panel shadow-lg border border-blue-200 dark:border-blue-900/60 text-xs font-medium text-blue-700 dark:text-blue-300">
+    <svg class="w-4 h-4 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+    </svg>
+    <span>กำลังซิงค์ข้อมูล...</span>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden max-w-sm transform transition-all duration-300"></div>
+
+<script>
+'use strict';
+
+const API_URL = 'https://script.google.com/macros/s/AKfycbyGlu5eZJPsVn532lmW-Obs7FY_wl-IYkA0O00AyKLmtJTGiHdXIu7r3e1yqT75Dlrg2g/exec';
+
+const state = {
+  token: sessionStorage.getItem('ddms_token') || '',
+  user: null,
+  page: 'dashboard',
+  rows: [],
+  sort: 'CreatedAt',
+  desc: true,
+  offset: 0,
+  limit: 15,
+  filter: '',
+  statusFilter: '',
+  settings: {},
+  lookups: {},
+  dashboard: null,
+  theme: localStorage.getItem('ddms_theme') || 'light'
+};
+
+const $ = id => document.getElementById(id);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const date = v => v ? String(v).slice(0, 10) : '';
+const safeUrl = u => /^https:\/\/(drive|docs)\.google\.com\//.test(u || '') ? u : '';
+
+// Column & Field Thai Translations
+const colLabels = {
+  RegisterNo: 'เลขทะเบียน',
+  BookNo: 'เลขที่หนังสือ',
+  Subject: 'เรื่อง',
+  FromDepartment: 'จากหน่วยงาน',
+  ToDepartment: 'ถึงหน่วยงาน',
+  Responsible: 'ผู้รับผิดชอบ',
+  Deadline: 'กำหนดส่ง',
+  Status: 'สถานะ',
+  Name: 'ชื่อแฟ้ม / รายการ',
+  Year: 'ปี พ.ศ.',
+  Department: 'หน่วยงาน/กลุ่มงาน',
+  Category: 'หมวดหมู่',
+  Type: 'ประเภท',
+  BookDate: 'ลงวันที่',
+  ReceiveDate: 'วันที่รับ',
+  ReceiveTime: 'เวลารับ',
+  BookType: 'ประเภทหนังสือ',
+  Urgency: 'ชั้นความเร็ว',
+  Confidentiality: 'ชั้นความลับ',
+  Details: 'รายละเอียด',
+  Notes: 'หมายเหตุ',
+  Important: 'เอกสารสำคัญ',
+  Permanent: 'เก็บถาวร',
+  FolderID: 'รหัสแฟ้ม',
+  Salutation: 'เรียน',
+  Enclosures: 'สิ่งที่ส่งมาด้วย',
+  Body: 'เนื้อหาสาระ',
+  PreparedBy: 'ผู้จัดทำ',
+  Signatory: 'ผู้ลงนาม',
+  CreatedAt: 'วันที่สร้าง',
+  UpdatedAt: 'แก้ไขล่าสุด',
+  ID: 'รหัสอ้างอิง',
+  Email: 'อีเมล',
+  Role: 'ระดับสิทธิ์',
+  Code: 'รหัสหน่วยงาน'
+};
+const tCol = k => colLabels[k] || k;
+
+// Theme Controller
+function applyTheme(t) {
+  state.theme = t;
+  localStorage.setItem('ddms_theme', t);
+  if (t === 'dark') {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+}
+function toggleTheme() {
+  applyTheme(state.theme === 'dark' ? 'light' : 'dark');
+  if (state.user) renderHeaderThemeIcon();
+}
+function renderHeaderThemeIcon() {
+  const btn = $('themeBtn');
+  if (!btn) return;
+  btn.innerHTML = state.theme === 'dark'
+    ? `<svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>`
+    : `<svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>`;
+}
+applyTheme(state.theme);
+
+// Toast Notification
+let toastTimer;
+const toast = (m, type = 'info') => {
+  const e = $('toast');
+  const isErr = /ไม่|ผิดพลาด|ล้มเหลว|เกิน|กรุณา/.test(m) || type === 'error';
+  const bg = isErr ? 'bg-rose-600 text-white' : 'bg-slate-900 dark:bg-blue-600 text-white';
+  const icon = isErr
+    ? `<svg class="w-5 h-5 shrink-0 text-rose-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`
+    : `<svg class="w-5 h-5 shrink-0 text-emerald-400 dark:text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+  e.innerHTML = `<div class="${bg} px-4 py-3.5 rounded-2xl shadow-xl flex items-center gap-3 text-sm font-medium border border-white/10">${icon}<span>${esc(m)}</span></div>`;
+  e.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => e.classList.add('hidden'), 3800);
+};
+
+const setLoading = show => {
+  const el = $('loader');
+  if (!el) return;
+  if (show) { el.classList.remove('hidden'); el.classList.add('flex'); }
+  else { el.classList.add('hidden'); el.classList.remove('flex'); }
+};
+
+async function api(action, data = {}) {
+  if (API_URL.startsWith('PASTE_')) throw Error('กรุณากำหนด API_URL ใน index.html');
+  setLoading(true);
+  try {
+    const r = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action, token: state.token, data })
+    });
+    const x = await r.json();
+    if (!x.success) throw Error(x.message || 'ไม่สามารถดำเนินการได้');
+    return x.data;
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function run(fn) {
+  try {
+    return await fn();
+  } catch (e) {
+    toast(e.message, 'error');
+    if (/เซสชัน|เข้าสู่ระบบใหม่/.test(e.message)) logout();
+    return null;
+  }
+}
+
+function logout() {
+  state.token = '';
+  state.user = null;
+  sessionStorage.removeItem('ddms_token');
+  render();
+}
+
+function toggleMobileMenu(force) {
+  const side = $('side');
+  const backdrop = $('sidebarBackdrop');
+  if (!side || !backdrop) return;
+  const isOpen = typeof force === 'boolean' ? force : side.classList.contains('-translate-x-full');
+  if (isOpen) {
+    side.classList.remove('-translate-x-full');
+    backdrop.classList.remove('hidden');
+  } else {
+    side.classList.add('-translate-x-full');
+    backdrop.classList.add('hidden');
+  }
+}
+
+function render() {
+  if (!state.user) {
+    $('app').innerHTML = `
+      <div class="min-h-screen flex flex-col justify-center items-center p-4 relative overflow-hidden bg-gradient-to-br from-slate-100 via-blue-50/50 to-indigo-100/70 dark:from-slate-950 dark:via-slate-900 dark:to-blue-950/40">
+        <!-- Decorative blobs -->
+        <div class="absolute -top-24 -left-24 w-96 h-96 bg-blue-500/15 dark:bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-24 -right-24 w-96 h-96 bg-amber-400/15 dark:bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="fixed top-5 right-5">
+          <button onclick="toggleTheme()" id="themeBtn" class="p-2.5 rounded-xl glass-panel shadow-sm hover:scale-105 transition" title="สลับโหมดสี"></button>
+        </div>
+
+        <div class="glass-panel w-full max-w-md rounded-3xl p-8 sm:p-10 shadow-2xl relative z-10">
+          <div class="flex items-center gap-3.5 mb-6">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-700 to-blue-500 flex items-center justify-center text-white shadow-lg shadow-blue-600/30">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            </div>
+            <div>
+              <span class="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">E-Saraban System</span>
+              <h1 class="text-2xl font-bold text-slate-900 dark:text-white leading-tight">ระบบสารบรรณดิจิทัล</h1>
+            </div>
+          </div>
+
+          <p class="text-sm text-slate-600 dark:text-slate-400 mb-6 pb-5 border-b border-slate-200/80 dark:border-slate-800">
+            ภาควิชาเทคโนโลยีและสื่อสารการศึกษา<br>
+            <span class="text-xs text-slate-500">คณะศึกษาศาสตร์ มหาวิทยาลัยมหาสารคาม</span>
+          </p>
+
+          <form onsubmit="event.preventDefault();login()" class="space-y-4 form-field">
+            <label class="block">
+              <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">อีเมลบัญชีผู้ใช้งาน</span>
+              <input id="email" type="email" placeholder="name@msu.ac.th" required autocomplete="username">
+            </label>
+            <label class="block">
+              <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">รหัสผ่าน</span>
+              <input id="password" type="password" placeholder="••••••••" required autocomplete="current-password">
+            </label>
+            <div class="pt-2">
+              <button type="submit" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-800 hover:to-blue-700 text-white font-semibold text-sm shadow-lg shadow-blue-600/25 transition transform active:scale-[0.99] flex items-center justify-center gap-2">
+                <span>เข้าสู่ระบบ</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+              </button>
+            </div>
+          </form>
+
+          <div class="mt-6 p-3.5 rounded-2xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/50 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            💡 <b>สำหรับผู้ดูแลระบบ:</b> สามารถตั้งรหัสผ่านใหม่ใน Google Sheets แท็บ <code class="text-blue-600 dark:text-blue-400 font-semibold">Users</code> คอลัมน์ <code class="text-blue-600 dark:text-blue-400 font-semibold">PasswordReset</code> ระบบจะเข้ารหัสอัตโนมัติเมื่อเข้าสู่ระบบสำเร็จ
+          </div>
+        </div>
+      </div>`;
+    renderHeaderThemeIcon();
+    return;
+  }
+
+  const nav = [
+    ['dashboard', '🏠', 'ภาพรวมระบบ'],
+    ['incoming', '📥', 'ทะเบียนหนังสือรับ'],
+    ['outgoing', '📤', 'ทะเบียนหนังสือส่ง'],
+    ['workflow', '📋', 'เสนอ / สั่งการ'],
+    ['editor', '📄', 'จัดทำเอกสาร'],
+    ['folders', '🗂️', 'ทะเบียน / แฟ้มงาน'],
+    ['search', '🔎', 'ค้นหาเอกสาร'],
+    ['reports', '📊', 'รายงานสรุป'],
+    ['settings', '⚙️', 'ตั้งค่าระบบ']
+  ];
+
+  $('app').innerHTML = `
+    <div class="min-h-screen flex bg-slate-50 dark:bg-slate-950">
+      <!-- Sidebar -->
+      <aside id="side" class="fixed md:sticky top-0 left-0 z-40 h-screen w-64 shrink-0 bg-msu-navy dark:bg-slate-900 text-white flex flex-col justify-between border-r border-slate-800 transition-transform duration-200 -translate-x-full md:translate-x-0 no-print">
+        <div>
+          <!-- Brand Header -->
+          <div class="p-5 flex items-center justify-between border-b border-white/10">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 text-slate-950 font-black flex items-center justify-center shadow-md shadow-amber-500/20 text-lg">
+                ส
+              </div>
+              <div>
+                <div class="font-bold text-sm tracking-tight text-white leading-none">ระบบสารบรรณดิจิทัล</div>
+                <div class="text-[11px] text-blue-200/80 mt-1">ภาควิชาเทคโนโลยีฯ มมส</div>
+              </div>
+            </div>
+            <button class="md:hidden text-slate-300 hover:text-white" onclick="toggleMobileMenu(false)">✕</button>
+          </div>
+
+          <!-- Navigation -->
+          <div class="p-3 space-y-1 overflow-y-auto max-h-[calc(100vh-160px)]">
+            <div class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-blue-300/60">เมนูหลัก</div>
+            ${nav.map(([k, icon, label]) => {
+              const active = state.page === k;
+              return `
+                <button onclick="navigate('${k}')" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  active
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                }">
+                  <span class="text-base">${icon}</span>
+                  <span>${label}</span>${active ? '<span class="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400"></span>' : ''}
+                </button>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- User Footer inside Sidebar -->
+        <div class="p-4 border-t border-white/10 bg-black/20">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-blue-500/30 border border-blue-400/40 flex items-center justify-center font-bold text-sm text-blue-100 shrink-0">
+              ${esc((state.user.Name || 'U').slice(0, 1))}
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="text-xs font-semibold text-white truncate">${esc(state.user.Name)}</div>
+              <div class="text-[11px] text-amber-300/90 truncate">${esc(state.user.Role || 'ผู้ใช้งาน')}</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content Area -->
+      <div class="flex-1 flex flex-col min-w-0">
+        <!-- Top Header -->
+        <header class="sticky top-0 z-20 glass-header border-b border-slate-200/80 dark:border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4 no-print">
+          <div class="flex items-center gap-3">
+            <button onclick="toggleMobileMenu(true)" class="md:hidden p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
+            <div>
+              <h2 class="text-sm sm:text-base font-bold text-slate-800 dark:text-white">สำนักงานดิจิทัล · ภาควิชาเทคโนโลยีและสื่อสารการศึกษา</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">คณะศึกษาศาสตร์ มหาวิทยาลัยมหาสารคาม</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 sm:gap-3">
+            <button onclick="toggleTheme()" id="themeBtn" class="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 transition" title="สลับโหมดมืด/สว่าง"></button>
+            <div class="hidden sm:flex flex-col text-right mr-1">
+              <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">${esc(state.user.Name)}</span>
+              <span class="text-[11px] text-slate-500 dark:text-slate-400">${esc(state.user.Department || state.user.Role)}</span>
+            </div>
+            <button onclick="logout()" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300 dark:hover:bg-rose-900/60 border border-rose-200/60 dark:border-rose-800/50 transition">
+              ออกจากระบบ
+            </button>
+          </div>
+        </header>
+
+        <!-- Dynamic View Container -->
+        <main id="view" class="flex-1 p-4 sm:p-8 max-w-[1600px] w-full mx-auto space-y-6"></main>
+      </div>
+    </div>`;
+
+  renderHeaderThemeIcon();
+  loadPage();
+}
+
+async function login() {
+  await run(async () => {
+    const email = $('email').value.trim();
+    const x = await api('login', { email, password: $('password').value });
+    state.token = x.token;
+    state.user = x.user;
+    sessionStorage.setItem('ddms_token', x.token);
+    toast('เข้าสู่ระบบสำเร็จ');
+    render();
+  });
+}
+
+async function boot() {
+  if (!state.token) return render();
+  await run(async () => {
+    state.user = await api('getCurrentUser');
+    render();
+  });
+  if (!state.user) render();
+}
+
+function navigate(p) {
+  state.page = p;
+  state.offset = 0;
+  state.filter = '';
+  state.statusFilter = '';
+  toggleMobileMenu(false);
+  render();
+}
+
+const titles = {
+  incoming: 'ทะเบียนหนังสือรับ',
+  outgoing: 'ทะเบียนหนังสือส่ง',
+  workflow: 'คิวงานเสนอ / สั่งการ',
+  folders: 'ทะเบียนแฟ้มเอกสาร',
+  search: 'ค้นหาเอกสารทั้งหมด'
+};
+
+const status = [
+  'รอดำเนินการ', 'กำลังดำเนินการ', 'รอเสนอ', 'รอสั่งการ',
+  'มอบหมายแล้ว', 'รอลงนาม', 'ส่งแล้ว', 'เสร็จสิ้น',
+  'เกินกำหนด', 'ยกเลิก', 'จัดเก็บถาวร'
+];
+
+const option = (values, value = '') =>
+  values.map(v => `<option value="${esc(v)}" ${String(v) === String(value) ? 'selected' : ''}>${esc(v)}</option>`).join('');
+
+function openModal(title, body) {
+  $('modalTitle').textContent = title;
+  $('modalBody').innerHTML = body;
+  $('modal').classList.remove('hidden');
+}
+
+function closeModal() {
+  $('modal').classList.add('hidden');
+}
+
+// Close modal on Escape key
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !$('modal').classList.contains('hidden')) closeModal();
+});
+
+async function loadPage() {
+  const v = $('view');
+  if (!v) return;
+  v.innerHTML = `
+    <div class="glass-panel rounded-2xl p-12 flex flex-col items-center justify-center gap-3 text-slate-500">
+      <svg class="w-8 h-8 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+      </svg>
+      <span class="text-sm font-medium">กำลังโหลดข้อมูล...</span>
+    </div>`;
+
+  await run(async () => {
+    if (state.page === 'dashboard') {
+      const d = await api('getDashboard');
+      state.dashboard = d;
+      const icons = ['📨', '📤', '⏳', '⚠️', '✅', '🗂️'];
+      v.innerHTML = `
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold text-slate-900 dark:text-white">ภาพรวมระบบสารบรรณ</h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400">สรุปสถิติการรับ-ส่งหนังสือและสถานะการดำเนินงานล่าสุด</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="navigate('incoming');setTimeout(()=>formRecord(),150)" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-md shadow-blue-600/20 transition">+ ลงทะเบียนรับ</button>
+            <button onclick="navigate('editor')" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-semibold transition">📄 จัดทำหนังสือส่ง</button>
+          </div>
+        </div>
+
+        <!-- KPI Stat Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          ${Object.entries(d.counts).map(([k, n], idx) => `
+            <div class="glass-panel rounded-2xl p-5 shadow-xs hover:shadow-md transition flex items-start justify-between">
+              <div>
+                <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">${esc(k)}</div>
+                <div class="text-3xl font-extrabold text-slate-900 dark:text-white mt-2">${Number(n).toLocaleString()}</div>
+              </div>
+              <div class="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900 flex items-center justify-center text-xl">
+                ${icons[idx % icons.length]}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Charts & Breakdown -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="glass-panel rounded-2xl p-6 lg:col-span-2 flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white">สถิติหนังสือรับ - ส่งรายเดือน</h3>
+                <p class="text-xs text-slate-500">เปรียบเทียบปริมาณงานสารบรรณแต่ละเดือน</p>
+              </div>
+              <div class="flex items-center gap-4 text-xs font-medium">
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-xs bg-blue-600 inline-block"></span> หนังสือรับ</span>
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-xs bg-teal-500 inline-block"></span> หนังสือส่ง</span>
+              </div>
+            </div>
+            ${bars(d.monthly)}
+          </div>
+
+          <div class="glass-panel rounded-2xl p-6">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1">สัดส่วนตามสถานะ</h3>
+            <p class="text-xs text-slate-500 mb-4">จำนวนเอกสารแยกตามขั้นตอนการทำงาน</p>
+            <div class="space-y-3">
+              ${Object.entries(d.statuses).map(([k, n]) => `
+                <div class="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-800/70 last:border-none">
+                  <span class="badge" data-status="${esc(k)}">${esc(k)}</span>
+                  <span class="text-sm font-bold text-slate-800 dark:text-slate-200">${Number(n).toLocaleString()} รายการ</span>
+                </div>
+              `).join('') || '<p class="text-xs text-slate-400">ยังไม่มีข้อมูลสถานะ</p>'}
+            </div>
+          </div>
+
+          <div class="glass-panel rounded-2xl p-6 lg:col-span-3">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white mb-4">ปริมาณเอกสารแยกตามหน่วยงาน</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              ${Object.entries(d.departments).map(([k, n]) => `
+                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800 flex items-center justify-between">
+                  <span class="text-xs font-medium text-slate-700 dark:text-slate-300 truncate pr-2">${esc(k || 'ไม่ระบุ')}</span>
+                  <span class="px-2.5 py-0.5 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs font-bold">${n}</span>
+                </div>
+              `).join('') || '<p class="text-xs text-slate-400">ยังไม่มีข้อมูลหน่วยงาน</p>'}
+            </div>
+          </div>
+        </div>`;
+      return;
+    }
+    if (state.page === 'settings') { await settingsPage(); return; }
+    if (state.page === 'editor') { editorPage(); return; }
+    if (state.page === 'reports') { await reportsPage(); return; }
+    await listPage();
+  });
+}
+
+function bars(data) {
+  if (!data || !data.length) return '<div class="h-44 flex items-center justify-center text-xs text-slate-400">ไม่มีข้อมูลรายเดือน</div>';
+  const max = Math.max(1, ...data.map(x => Math.max(Number(x.incoming || 0), Number(x.outgoing || 0))));
+  return `
+    <div class="pt-6 pb-2 overflow-x-auto">
+      <div class="flex items-end gap-4 h-48 min-w-[480px] px-2 border-b border-slate-200 dark:border-slate-800">
+        ${data.map(x => {
+          const hIn = Math.max(4, Math.round((Number(x.incoming || 0) / max) * 155));
+          const hOut = Math.max(4, Math.round((Number(x.outgoing || 0) / max) * 155));
+          return `
+            <div class="flex-1 flex flex-col items-center group">
+              <div class="flex items-end gap-1.5 h-[165px]">
+                <div class="w-4 sm:w-5 bg-gradient-to-t from-blue-700 to-blue-500 rounded-t-md transition-all group-hover:opacity-85 relative" style="height:${hIn}px" title="รับ: ${x.incoming}"></div>
+                <div class="w-4 sm:w-5 bg-gradient-to-t from-teal-600 to-teal-400 rounded-t-md transition-all group-hover:opacity-85 relative" style="height:${hOut}px" title="ส่ง: ${x.outgoing}"></div>
+              </div>
+              <div class="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-2">${esc(x.month)}</div>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+async function listPage() {
+  const p = state.page;
+  let rows;
+  if (p === 'incoming') rows = await api('getIncomingBooks');
+  else if (p === 'outgoing') rows = await api('getOutgoingBooks');
+  else if (p === 'workflow') rows = await api('getWorkflowQueue');
+  else if (p === 'folders') rows = await api('getFolders');
+  else rows = await api('searchDocuments', {});
+  state.rows = rows || [];
+  drawTable();
+}
+
+function drawTable() {
+  const p = state.page;
+  const kw = state.filter.trim().toLowerCase();
+  const st = state.statusFilter;
+
+  const rows = state.rows.filter(r => {
+    const matchKw = !kw || Object.values(r).some(v => String(v ?? '').toLowerCase().includes(kw));
+    const matchSt = !st || String(r.Status ?? '') === st;
+    return matchKw && matchSt;
+  });
+
+  rows.sort((a, b) => String(a[state.sort] ?? '').localeCompare(String(b[state.sort] ?? ''), 'th', { numeric: true }) * (state.desc ? -1 : 1));
+
+  const page = rows.slice(state.offset, state.offset + state.limit);
+  const cols = p === 'folders'
+    ? ['Name', 'Year', 'Department', 'Category', 'Type']
+    : ['RegisterNo', 'BookNo', 'Subject', 'FromDepartment', 'ToDepartment', 'Responsible', 'Deadline', 'Status'];
+
+  $('view').innerHTML = `
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">${titles[p]}</h1>
+        <p class="text-xs text-slate-500 dark:text-slate-400">พบข้อมูลทั้งหมด ${rows.length.toLocaleString()} รายการ</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 no-print">
+        ${['incoming', 'outgoing', 'folders'].includes(p) ? `
+          <button onclick="formRecord()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-md shadow-blue-600/20 flex items-center gap-1.5 transition">
+            <span>+ เพิ่มรายการใหม่</span>
+          </button>` : ''}
+        <button onclick="printTable()" class="px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 transition">🖨️ พิมพ์</button>
+        <button onclick="exportCsv()" class="px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 transition">📥 ส่งออก CSV</button>
+      </div>
+    </div>
+
+    <div class="glass-panel rounded-2xl shadow-xs overflow-hidden">
+      <!-- Search & Filter Toolbar -->
+      <div class="p-4 border-b border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-900/40 no-print">
+        <div class="flex flex-wrap items-center gap-3 flex-1 min-w-[240px]">
+          <div class="relative flex-1 max-w-sm">
+            <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input
+              placeholder="ค้นหาเลขที่, เรื่อง, หน่วยงาน, ผู้รับผิดชอบ..."
+              value="${esc(state.filter)}"
+              oninput="state.filter=this.value;state.offset=0;drawTable()"
+              class="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs focus:outline-none focus:border-blue-500">
+          </div>
+          ${p !== 'folders' ? `
+            <select onchange="state.statusFilter=this.value;state.offset=0;drawTable()" class="py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs focus:outline-none focus:border-blue-500">
+              <option value="">ทุกสถานะเอกสาร</option>
+              ${option(status, state.statusFilter)}
+            </select>` : ''}
+        </div>
+      </div>
+
+      <!-- Data Table -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs sm:text-sm">
+          <thead>
+            <tr class="bg-slate-100/80 dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800">
+              ${cols.map(c => `
+                <th onclick="sortBy('${c}')" class="py-3.5 px-4 font-semibold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap select-none">
+                  <div class="flex items-center gap-1">
+                    <span>${esc(tCol(c))}</span>
+                    <span class="text-[10px] ${state.sort === c ? 'text-blue-600 font-bold' : 'opacity-40'}">${state.sort === c ? (state.desc ? '▼' : '▲') : '↕'}</span>
+                  </div>
+                </th>`).join('')}
+              <th class="py-3.5 px-4 font-semibold text-right whitespace-nowrap no-print">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200/60 dark:divide-slate-800/70">
+            ${page.map(r => `
+              <tr class="hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors">
+                ${cols.map(c => {
+                  if (c === 'Status') {
+                    return `<td class="py-3.5 px-4 whitespace-nowrap"><span class="badge" data-status="${esc(r[c])}">${esc(r[c] || '-')}</span></td>`;
+                  }
+                  if (c === 'Subject') {
+                    const urg = r.Urgency && r.Urgency !== 'ปกติ' ? `<span class="mr-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">${esc(r.Urgency)}</span>` : '';
+                    return `<td class="py-3.5 px-4 font-medium text-slate-900 dark:text-white max-w-xs sm:max-w-md truncate" title="${esc(r[c])}">${urg}${esc(r[c] || '-')}</td>`;
+                  }
+                  if (c === 'Deadline') {
+                    return `<td class="py-3.5 px-4 whitespace-nowrap text-slate-600 dark:text-slate-400">${esc(date(r[c]) || '-')}</td>`;
+                  }
+                  return `<td class="py-3.5 px-4 whitespace-nowrap text-slate-700 dark:text-slate-300">${esc(r[c] || '-')}</td>`;
+                }).join('')}
+                <td class="py-3 px-4 whitespace-nowrap text-right space-x-1 no-print">
+                  <button onclick="viewRecord('${esc(r.ID)}')" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium transition">รายละเอียด</button>
+                  ${p !== 'search' ? `<button onclick="formRecord('${esc(r.ID)}')" class="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/70 text-blue-600 dark:text-blue-300 text-xs font-medium transition">แก้ไข</button>` : ''}
+                  ${['incoming', 'outgoing'].includes(p) ? `<button onclick="removeRecord('${esc(r.ID)}')" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900/70 text-rose-600 dark:text-rose-300 text-xs font-medium transition">ลบ</button>` : ''}
+                </td>
+              </tr>`).join('') || `
+              <tr>
+                <td colspan="${cols.length + 1}" class="py-12 text-center text-slate-400 text-sm">
+                  ไม่พบรายการเอกสารในหมวดหมู่นี้
+                </td>
+              </tr>`}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="px-5 py-3.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 bg-slate-50/40 dark:bg-slate-900/40 no-print">
+        <span>แสดง <b>${rows.length ? state.offset + 1 : 0} - ${Math.min(state.offset + state.limit, rows.length)}</b> จากทั้งหมด <b>${rows.length}</b> รายการ</span>
+        <div class="flex items-center gap-2">
+          <button onclick="changePage(-1)" ${state.offset === 0 ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 disabled:opacity-40 hover:bg-slate-100 transition font-medium">ก่อนหน้า</button>
+          <button onclick="changePage(1)" ${state.offset + state.limit >= rows.length ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 disabled:opacity-40 hover:bg-slate-100 transition font-medium">ถัดไป</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function changePage(d) {
+  const n = state.offset + d * state.limit;
+  if (n >= 0 && n < state.rows.length) {
+    state.offset = n;
+    drawTable();
+  }
+}
+
+function sortBy(k) {
+  state.desc = state.sort === k ? !state.desc : false;
+  state.sort = k;
+  drawTable();
+}
+
+const incomingFields = [
+  ['BookNo', 'เลขที่หนังสือ'],
+  ['BookDate', 'วันที่หนังสือ', 'date'],
+  ['ReceiveDate', 'วันที่รับ', 'date'],
+  ['ReceiveTime', 'เวลารับ', 'time'],
+  ['Subject', 'เรื่อง'],
+  ['FromDepartment', 'จากหน่วยงาน'],
+  ['ToDepartment', 'ถึงหน่วยงาน'],
+  ['BookType', 'ประเภทหนังสือ'],
+  ['Urgency', 'ชั้นความเร็ว'],
+  ['Confidentiality', 'ชั้นความลับ'],
+  ['Responsible', 'ผู้รับผิดชอบ'],
+  ['Deadline', 'กำหนดดำเนินการ', 'date'],
+  ['Status', 'สถานะ'],
+  ['Details', 'รายละเอียด', 'textarea'],
+  ['Notes', 'หมายเหตุ', 'textarea'],
+  ['Important', 'เอกสารสำคัญ', 'checkbox'],
+  ['Permanent', 'เอกสารถาวร', 'checkbox'],
+  ['FolderID', 'รหัสแฟ้ม']
+];
+
+const outgoingFields = [
+  ['BookType', 'ประเภทหนังสือ'],
+  ['BookDate', 'วันที่', 'date'],
+  ['Subject', 'เรื่อง'],
+  ['Salutation', 'เรียน'],
+  ['FromDepartment', 'จาก'],
+  ['ToDepartment', 'ถึง'],
+  ['Enclosures', 'สิ่งที่ส่งมาด้วย'],
+  ['Body', 'เนื้อหา', 'textarea'],
+  ['PreparedBy', 'ผู้จัดทำ'],
+  ['Signatory', 'ผู้ลงนาม'],
+  ['Responsible', 'ผู้รับผิดชอบ'],
+  ['Deadline', 'กำหนดส่ง', 'date'],
+  ['Status', 'สถานะ'],
+  ['Notes', 'หมายเหตุ', 'textarea']
+];
+
+function field([k, label, type], r) {
+  let input;
+  if (type === 'textarea') {
+    input = `<textarea name="${k}" placeholder="ระบุ${esc(label)}...">${esc(r[k])}</textarea>`;
+  } else if (type === 'checkbox') {
+    return `
+      <label class="flex items-center gap-2.5 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 cursor-pointer">
+        <input type="checkbox" name="${k}" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" ${r[k] === true || r[k] === 'true' ? 'checked' : ''}>
+        <span class="text-xs font-semibold text-slate-700 dark:text-slate-200">${esc(label)}</span>
+      </label>`;
+  } else if (k === 'Status') {
+    input = `<select name="${k}">${option(status, r[k] || 'รอดำเนินการ')}</select>`;
+  } else if (k === 'Urgency') {
+    input = `<select name="${k}">${option(['ปกติ', 'ด่วน', 'ด่วนมาก', 'ด่วนที่สุด'], r[k])}</select>`;
+  } else if (k === 'Confidentiality') {
+    input = `<select name="${k}">${option(['ปกติ', 'ลับ', 'ลับมาก', 'ลับที่สุด'], r[k])}</select>`;
+  } else if (k === 'BookType') {
+    input = `<select name="${k}">${option(['หนังสือภายนอก', 'หนังสือภายใน', 'หนังสือประทับตรา', 'คำสั่ง', 'ประกาศ', 'บันทึกข้อความ'], r[k])}</select>`;
+  } else {
+    const val = (type === 'date' && r[k]) ? date(r[k]) : (r[k] ?? '');
+    input = `<input name="${k}" type="${type || 'text'}" value="${esc(val)}">`;
+  }
+  return `
+    <label class="block ${type === 'textarea' ? 'sm:col-span-2' : ''}">
+      <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">${esc(label)}</span>
+      ${input}
+    </label>`;
+}
+
+function formRecord(id = '') {
+  const p = state.page;
+  const r = state.rows.find(x => x.ID === id) || {};
+  const fields = p === 'incoming' ? incomingFields : p === 'outgoing' ? outgoingFields : [
+    ['Name', 'ชื่อแฟ้ม'], ['Year', 'ปี พ.ศ.'], ['Department', 'กลุ่มงาน'], ['Category', 'หมวดหมู่'], ['Type', 'ประเภท']
+  ];
+  openModal(
+    id ? 'แก้ไขข้อมูลรายการ' : 'เพิ่มรายการใหม่',
+    `<form id="recordForm" onsubmit="saveRecord(event,'${esc(id)}')" class="form-field space-y-5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        ${fields.map(f => field(f, r)).join('')}
+        <label class="sm:col-span-2 block p-4 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
+          <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">📎 แนบไฟล์เอกสาร (PDF / รูปภาพ / เอกสารราชการ ไม่เกิน 7 MB)</span>
+          <input id="file" type="file" class="text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+        </label>
+      </div>
+      <div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+        <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold">ยกเลิก</button>
+        <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-md shadow-blue-600/20">บันทึกข้อมูล</button>
+      </div>
+    </form>`
+  );
+}
+
+async function saveRecord(e, id) {
+  e.preventDefault();
+  await run(async () => {
+    const f = e.target;
+    const d = Object.fromEntries(new FormData(f).entries());
+    f.querySelectorAll('input[type=checkbox]').forEach(x => d[x.name] = x.checked);
+    if (id) d.ID = id;
+    const p = state.page;
+    const action = p === 'incoming'
+      ? (id ? 'updateIncomingBook' : 'saveIncomingBook')
+      : p === 'outgoing'
+        ? (id ? 'updateOutgoingBook' : 'saveOutgoingBook')
+        : 'saveFolder';
+    const saved = await api(action, d);
+    const file = $('file').files[0];
+    if (file) await uploadSelected(file, saved.ID || id);
+    closeModal();
+    toast('บันทึกข้อมูลเรียบร้อยแล้ว');
+    loadPage();
+  });
+}
+
+async function uploadSelected(file, documentId) {
+  if (file.size > 7 * 1024 * 1024) throw Error('ขนาดไฟล์ต้องไม่เกิน 7 MB');
+  const base64 = await new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload = () => res(String(reader.result).split(',')[1]);
+    reader.onerror = rej;
+    reader.readAsDataURL(file);
+  });
+  return api('uploadFile', { documentId, name: file.name, mimeType: file.type || 'application/octet-stream', base64 });
+}
+
+async function viewRecord(id) {
+  await run(async () => {
+    const r = await api('getDocument', { id });
+    const fields = Object.entries(r.document).map(([k, v]) => `
+      <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800">
+        <div class="text-[11px] font-semibold text-slate-400 uppercase">${esc(tCol(k))}</div>
+        <div class="text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-100 mt-0.5 break-words">${k === 'Status' ? `<span class="badge" data-status="${esc(v)}">${esc(v)}</span>` : esc(v || '-')}</div>
+      </div>`).join('');
+
+    openModal(
+      'รายละเอียดและการติดตามเอกสาร',
+      `<div class="space-y-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">${fields}</div>
+
+        <div class="p-4 rounded-2xl bg-blue-50/50 dark:bg-slate-800/60 border border-blue-100 dark:border-slate-700">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400 mb-3">📎 ไฟล์แนบเอกสาร</h4>
+          <div class="space-y-2">
+            ${r.files.map(f => `
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-xs">
+                <span class="font-medium truncate pr-3">${esc(f.FileName)}</span>
+                <button onclick="downloadFile('${esc(f.ID)}')" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 shrink-0">เปิดดูไฟล์</button>
+              </div>`).join('') || '<p class="text-xs text-slate-400">ไม่มีไฟล์แนบ</p>'}
+          </div>
+        </div>
+
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">🕒 ประวัติการดำเนินการ (Workflow Timeline)</h4>
+          <div class="space-y-2.5 border-l-2 border-blue-500/40 pl-4 ml-2">
+            ${r.timeline.map(t => `
+              <div class="relative text-xs">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-600 absolute -left-[21px] top-1"></span>
+                <div class="font-bold text-slate-800 dark:text-slate-200">${esc(t.Action)} <span class="font-normal text-slate-400">· ${esc(t.CreatedAt)}</span></div>
+                <div class="text-slate-600 dark:text-slate-300 mt-0.5">${esc(t.Comment || '-')} <span class="text-blue-600 dark:text-blue-400 font-medium">(${esc(t.Actor)})</span></div>
+              </div>`).join('') || '<p class="text-xs text-slate-400">ยังไม่มีประวัติการดำเนินการ</p>'}
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap gap-2 justify-between items-center no-print">
+          <div class="flex flex-wrap gap-2">
+            <button onclick="workflowAction('${esc(id)}','submitForApproval')" class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold">📤 เสนอผู้บริหาร</button>
+            <button onclick="workflowAction('${esc(id)}','issueOrder')" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold">✍️ สั่งการ / เกษียน</button>
+            <button onclick="workflowAction('${esc(id)}','assignTask')" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold">👤 มอบหมายงาน</button>
+            <button onclick="workflowAction('${esc(id)}','updateTaskStatus')" class="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold">🔄 อัปเดตสถานะ</button>
+            <button onclick="workflowAction('${esc(id)}','sendOutgoingBook')" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">📨 ส่งหนังสือออก</button>
+          </div>
+          <button onclick="printModal()" class="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold">🖨️ พิมพ์</button>
+        </div>
+      </div>`
+    );
+  });
+}
+
+async function downloadFile(id) {
+  await run(async () => {
+    const x = await api('getFileLink', { id });
+    const u = safeUrl(x.url);
+    if (!u) throw Error('ลิงก์ไฟล์ไม่ถูกต้อง');
+    window.open(u, '_blank', 'noopener,noreferrer');
+  });
+}
+
+function workflowAction(id, action) {
+  const actionNames = {
+    submitForApproval: 'เสนอหนังสือเพื่อพิจารณา',
+    issueOrder: 'บันทึกคำสั่งการ / เกษียนหนังสือ',
+    assignTask: 'มอบหมายผู้รับผิดชอบ',
+    updateTaskStatus: 'ปรับปรุงสถานะการดำเนินงาน',
+    sendOutgoingBook: 'ยืนยันการส่งหนังสือออก'
+  };
+  openModal(
+    actionNames[action] || 'บันทึกการดำเนินการ',
+    `<form onsubmit="saveWorkflow(event,'${esc(id)}','${action}')" class="form-field space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <label class="block">
+          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">ผู้รับมอบหมาย / ผู้รับผิดชอบ</span>
+          <input name="assignee" placeholder="ระบุชื่ออาจารย์ / เจ้าหน้าที่">
+        </label>
+        <label class="block">
+          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">เปลี่ยนสถานะเป็น</span>
+          <select name="status">${option(status)}</select>
+        </label>
+        <label class="block">
+          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">กำหนดแล้วเสร็จ</span>
+          <input name="deadline" type="date">
+        </label>
+        <label class="block">
+          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">คำสั่งการ</span>
+          <select name="order">${option(['ทราบ', 'ดำเนินการ', 'ตรวจสอบ', 'แจ้งผู้เกี่ยวข้อง', 'มอบหมาย', 'เห็นชอบ', 'อนุมัติ', 'อื่น ๆ'])}</select>
+        </label>
+        <label class="block sm:col-span-2">
+          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">ความเห็น / บันทึกสั่งการเพิ่มเติม</span>
+          <textarea name="comment" placeholder="พิมพ์ความเห็นหรือข้อสั่งการ..."></textarea>
+        </label>
+      </div>
+      <div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold">ยกเลิก</button>
+        <button type="submit" class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-md shadow-blue-600/20">ยืนยันการบันทึก</button>
+      </div>
+    </form>`
+  );
+}
+
+async function saveWorkflow(e, id, action) {
+  e.preventDefault();
+  await run(async () => {
+    await api(action, { id, ...Object.fromEntries(new FormData(e.target).entries()) });
+    closeModal();
+    toast('บันทึกการดำเนินการสำเร็จ');
+    loadPage();
+  });
+}
+
+async function removeRecord(id) {
+  if (!confirm('ยืนยันการลบรายการเอกสารนี้ออกจากระบบ?')) return;
+  await run(async () => {
+    await api(state.page === 'incoming' ? 'deleteIncomingBook' : 'deleteOutgoingBook', { id });
+    toast('ลบรายการเรียบร้อยแล้ว');
+    loadPage();
+  });
+}
+
+function editorPage() {
+  const v = $('view');
+  v.innerHTML = `
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900 dark:text-white">จัดทำเอกสารราชการ / บันทึกข้อความ</h1>
+      <p class="text-xs text-slate-500 dark:text-slate-400">กรอกข้อมูลเพื่อออกเลขทะเบียนหนังสือส่งพร้อมสร้างไฟล์ PDF อัตโนมัติ</p>
+    </div>
+    <div class="glass-panel rounded-2xl p-6 sm:p-8">
+      <form id="editorForm" onsubmit="createDocument(event)" class="form-field space-y-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          ${outgoingFields.filter(x => x[0] !== 'Status').map(x => field(x, {})).join('')}
+        </div>
+        <div class="flex flex-wrap gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-lg shadow-blue-600/25">💾 บันทึกและสร้างไฟล์ PDF</button>
+          <button type="button" onclick="previewEditor()" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold">👁️ ดูตัวอย่างรูปแบบกระดาษ / พิมพ์</button>
+        </div>
+      </form>
+    </div>`;
+}
+
+function previewEditor() {
+  const d = Object.fromEntries(new FormData($('editorForm')).entries());
+  const html = `
+    <div class="p-8 bg-white text-slate-900 rounded-xl border border-slate-200 space-y-4 leading-relaxed text-sm">
+      <div class="text-center border-b pb-4">
+        <div class="text-lg font-bold">${esc(d.BookType || 'บันทึกข้อความ')}</div>
+        <div class="text-xs text-slate-500">ภาควิชาเทคโนโลยีและสื่อสารการศึกษา คณะศึกษาศาสตร์ มหาวิทยาลัยมหาสารคาม</div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div><b>ส่วนราชการ:</b> ${esc(d.FromDepartment || '-')}</div>
+        <div><b>วันที่:</b> ${esc(d.BookDate || '-')}</div>
+      </div>
+      <div><b>เรื่อง:</b> ${esc(d.Subject || '-')}</div>
+      <div><b>เรียน:</b> ${esc(d.Salutation || d.ToDepartment || '-')}</div>
+      ${d.Enclosures ? `<div><b>สิ่งที่ส่งมาด้วย:</b> ${esc(d.Enclosures)}</div>` : ''}
+      <div class="pt-3 pb-6 whitespace-pre-wrap border-t border-slate-100">${esc(d.Body || '')}</div>
+      <div class="text-right pr-8 pt-6">
+        <div>ลงชื่อ.......................................................</div>
+        <div class="mt-1 font-semibold">(${esc(d.Signatory || '.......................................................')})</div>
+      </div>
+    </div>`;
+  openModal('ตัวอย่างเอกสารราชการ', `<div id="preview">${html}</div><div class="flex justify-end pt-3"><button onclick="printModal()" class="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold">🖨️ สั่งพิมพ์เอกสาร</button></div>`);
+}
+
+async function createDocument(e) {
+  e.preventDefault();
+  await run(async () => {
+    const d = Object.fromEntries(new FormData(e.target).entries());
+    const r = await api('saveOutgoingBook', d);
+    const x = await api('createDocumentPdf', { id: r.ID });
+    toast('สร้างเอกสารและออกเลขทะเบียนสำเร็จ');
+    if (x.url) window.open(safeUrl(x.url), '_blank', 'noopener,noreferrer');
+    navigate('outgoing');
+  });
+}
+
+async function reportsPage() {
+  const r = await api('getReports', {});
+  state.rows = r.overdue || [];
+  $('view').innerHTML = `
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">รายงานสรุปและติดตามงานค้าง</h1>
+        <p class="text-xs text-slate-500 dark:text-slate-400">ข้อมูลสรุปเพื่อการบริหารจัดการและประเมินผลคุณภาพหน่วยงาน</p>
+      </div>
+      <div class="flex gap-2 no-print">
+        <button onclick="printTable()" class="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold">🖨️ พิมพ์รายงาน</button>
+        <button onclick="exportCsv()" class="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold">📥 ส่งออก CSV</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      ${Object.entries(r.summary).map(([k, v]) => `
+        <div class="glass-panel rounded-2xl p-5">
+          <div class="text-xs font-semibold text-slate-500">${esc(k)}</div>
+          <div class="text-3xl font-extrabold text-blue-600 dark:text-blue-400 mt-2">${esc(v)}</div>
+        </div>`).join('')}
+    </div>
+
+    <div class="glass-panel rounded-2xl overflow-hidden">
+      <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+        <div>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white">⚠️ รายการเอกสารเกินกำหนดดำเนินการ</h3>
+          <p class="text-xs text-slate-500">รายการที่ต้องเร่งติดตามผู้รับผิดชอบ</p>
+        </div>
+        <span class="px-3 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 text-xs font-bold">${r.overdue.length} รายการ</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs sm:text-sm">
+          <thead>
+            <tr class="bg-slate-100/80 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300">
+              <th class="py-3.5 px-4">เรื่อง</th>
+              <th class="py-3.5 px-4">ผู้รับผิดชอบ</th>
+              <th class="py-3.5 px-4">กำหนดส่ง</th>
+              <th class="py-3.5 px-4">เกินกำหนด (วัน)</th>
+              <th class="py-3.5 px-4">สถานะ</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200/60 dark:divide-slate-800">
+            ${r.overdue.map(x => `
+              <tr class="hover:bg-rose-50/30 dark:hover:bg-rose-950/20">
+                <td class="py-3.5 px-4 font-medium text-slate-900 dark:text-white">${esc(x.Subject)}</td>
+                <td class="py-3.5 px-4">${esc(x.Responsible)}</td>
+                <td class="py-3.5 px-4">${esc(date(x.Deadline))}</td>
+                <td class="py-3.5 px-4 font-bold text-rose-600">${esc(x.DaysOverdue)} วัน</td>
+                <td class="py-3.5 px-4"><span class="badge" data-status="${esc(x.Status)}">${esc(x.Status)}</span></td>
+              </tr>`).join('') || '<tr><td colspan="5" class="py-10 text-center text-slate-400">🎉 ไม่มีรายการเอกสารที่เกินกำหนด</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+async function settingsPage() {
+  const [settings, users, departments, types] = await Promise.all([
+    api('getSettings'), api('getUsers'), api('getDepartments'), api('getBookTypes')
+  ]);
+  state.settings = settings;
+  $('view').innerHTML = `
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900 dark:text-white">ตั้งค่าระบบและจัดการสิทธิ์ (RBAC)</h1>
+      <p class="text-xs text-slate-500 dark:text-slate-400">กำหนดค่ารูปแบบเลขทะเบียน ผู้ใช้งาน หน่วยงาน และประเภทหนังสือ</p>
+    </div>
+
+    <div class="glass-panel rounded-2xl p-6">
+      <h3 class="text-base font-bold text-slate-900 dark:text-white mb-4">⚙️ รูปแบบเลขหนังสือและค่าพารามิเตอร์ระบบ</h3>
+      <form onsubmit="saveConfig(event)" class="form-field grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        ${Object.entries(settings).filter(([k]) => !/(SECRET|TOKEN|KEY|PASSWORD)/i.test(k)).map(([k, v]) => `
+          <label class="block">
+            <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">${esc(k)}</span>
+            <input name="${esc(k)}" value="${esc(v)}">
+          </label>`).join('')}
+        <div class="sm:col-span-2 lg:col-span-3 pt-2">
+          <button class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-md shadow-blue-600/20">บันทึกการตั้งค่าระบบ</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="glass-panel rounded-2xl p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white">👥 บัญชีผู้ใช้งานและสิทธิ์การเข้าถึง</h3>
+          <p class="text-xs text-slate-500">จัดการสิทธิ์ Super Admin, Admin, ผู้บริหาร, เจ้าหน้าที่สารบรรณ และอาจารย์</p>
+        </div>
+        <button onclick="userForm()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold">+ เพิ่ม / แก้ไขผู้ใช้</button>
+      </div>
+      ${simpleTable(users, ['Email', 'Name', 'Department', 'Role', 'Status'])}
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="glass-panel rounded-2xl p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white">🏢 หน่วยงานภายใน / ภายนอก</h3>
+          <button onclick="lookupForm('saveDepartment')" class="px-3.5 py-2 rounded-xl bg-slate-800 dark:bg-blue-600 text-white text-xs font-semibold">+ เพิ่มหน่วยงาน</button>
+        </div>
+        ${simpleTable(departments, ['Code', 'Name', 'Responsible', 'Status'])}
+      </div>
+
+      <div class="glass-panel rounded-2xl p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white">📑 ประเภทหนังสือราชการ</h3>
+          <button onclick="lookupForm('saveBookType')" class="px-3.5 py-2 rounded-xl bg-slate-800 dark:bg-blue-600 text-white text-xs font-semibold">+ เพิ่มประเภท</button>
+        </div>
+        ${simpleTable(types, ['Name', 'Status'])}
+      </div>
+    </div>`;
+}
+
+function simpleTable(rows, cols) {
+  return `
+    <div class="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-slate-800">
+      <table class="w-full text-left text-xs sm:text-sm">
+        <thead>
+          <tr class="bg-slate-100/80 dark:bg-slate-800/70 text-slate-600 dark:text-slate-300">
+            ${cols.map(c => `<th class="py-3 px-4 font-semibold">${esc(tCol(c))}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200/60 dark:divide-slate-800">
+          ${rows.map(r => `
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+              ${cols.map(c => `<td class="py-3 px-4">${esc(r[c] || '-')}</td>`).join('')}
+            </tr>`).join('') || `<tr><td colspan="${cols.length}" class="py-6 text-center text-slate-400">ไม่มีข้อมูล</td></tr>`}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+async function saveConfig(e) {
+  e.preventDefault();
+  await run(async () => {
+    await api('saveSettings', Object.fromEntries(new FormData(e.target).entries()));
+    toast('บันทึกการตั้งค่าเรียบร้อยแล้ว');
+  });
+}
+
+function userForm() {
+  openModal(
+    'จัดการบัญชีผู้ใช้งาน',
+    `<form onsubmit="saveSimple(event,'saveUser')" class="form-field space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        ${[['Email', 'อีเมล (Google Account)'], ['Name', 'ชื่อ-นามสกุล'], ['Department', 'หน่วยงาน / กลุ่มงาน']].map(k => field(k, {})).join('')}
+        <label class="block">
+          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">ระดับสิทธิ์ (Role)</span>
+          <select name="Role">${option(['Super Admin', 'Admin', 'ผู้บริหาร', 'เจ้าหน้าที่สารบรรณ', 'อาจารย์/บุคลากร', 'ผู้ใช้งานทั่วไป'])}</select>
+        </label>
+        <label class="block">
+          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">สถานะบัญชี</span>
+          <select name="Status">${option(['Active', 'Inactive'])}</select>
+        </label>
+      </div>
+      <div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold">ยกเลิก</button>
+        <button type="submit" class="px-5 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold">บันทึกผู้ใช้งาน</button>
+      </div>
+    </form>`
+  );
+}
+
+function lookupForm(action) {
+  const keys = action === 'saveDepartment'
+    ? [['Code', 'รหัสหน่วยงาน'], ['Name', 'ชื่อหน่วยงาน'], ['Responsible', 'ผู้รับผิดชอบหลัก'], ['Status', 'สถานะ']]
+    : [['Name', 'ชื่อประเภทหนังสือ'], ['Status', 'สถานะ']];
+  openModal(
+    'เพิ่มข้อมูลอ้างอิง',
+    `<form onsubmit="saveSimple(event,'${action}')" class="form-field space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">${keys.map(k => field(k, {})).join('')}</div>
+      <div class="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold">ยกเลิก</button>
+        <button type="submit" class="px-5 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold">บันทึกข้อมูล</button>
+      </div>
+    </form>`
+  );
+}
+
+async function saveSimple(e, action) {
+  e.preventDefault();
+  await run(async () => {
+    await api(action, Object.fromEntries(new FormData(e.target).entries()));
+    closeModal();
+    toast('บันทึกข้อมูลสำเร็จ');
+    loadPage();
+  });
+}
+
+function printTable() { window.print(); }
+
+function printModal() {
+  const html = $('modalBody').innerHTML;
+  const w = window.open('', '_blank');
+  if (!w) return;
+  w.document.write(`
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet">
+        <style>body{font-family:'Noto Sans Thai',sans-serif;padding:24px;color:#111}button{display:none}</style>
+      </head>
+      <body>${html.replace(/<button[^>]*>[\s\S]*?<\/button>/g, '')}</body>
+    </html>`);
+  w.document.close();
+  setTimeout(() => w.print(), 250);
+}
+
+function exportCsv() {
+  const rows = state.rows;
+  if (!rows.length) return toast('ไม่มีข้อมูลสำหรับส่งออก', 'error');
+  const keys = Object.keys(rows[0]);
+  const csv = [keys, ...rows.map(r => keys.map(k => '"' + String(r[k] ?? '').replace(/"/g, '""') + '"'))].map(x => x.join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `saraban-${state.page}-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+boot();
+</script>
+</body>
+</html>
